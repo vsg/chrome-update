@@ -12,6 +12,9 @@ import urllib2
 import re, os
 
 
+SKIP_TEST_GROUPS = ["mac", "linux", "chromiumos"]
+
+
 class TestData:
 
     def __init__(self, page):
@@ -54,7 +57,9 @@ class TestData:
             print
 
     def is_good_enough(self, results):
-        for n, N in results:
+        for name, (n, N) in zip(self.groups, results):
+            if name in SKIP_TEST_GROUPS:
+                continue
             if n < N:
                 return False
         return True
