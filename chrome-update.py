@@ -70,47 +70,33 @@ class TestData:
                 yield rev
 
 
-class BuildData:
+def is_available(rev):
+    try:
+        urllib2.urlopen("http://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/%s/chrome-win32.zip" % rev)
+        return True
+    except:
+        return False
 
-    def __init__(self, page):
-        self.builds = self._parse_builds(page)
-    
-    def _parse_builds(self, page):
-        result = []
-        for line in page.split("\n"):
-            m = re.search("href=\"([0-9]+)/\"", line)
-            if m:
-                result.append(m.group(1))
-        return result
-
-    def is_available(self, rev):
-        return rev in self.builds
-
-    def download(self, rev):
-        src = "http://build.chromium.org/f/chromium/snapshots/Win/%s/chrome-win32.zip" % rev
-        dest = "chrome-win32-%s.zip" % rev
-        os.system("wget -c -O \"%s\" \"%s\"" % (dest, src))
+def download(rev):
+    src = "http://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/%s/chrome-win32.zip" % rev
+    dest = "chrome-win32-%s.zip" % rev
+    os.system("wget -c -O \"%s\" \"%s\"" % (dest, src))
 
 
 if __name__ == '__main__':
     print "Downloading tests page..."
+    print
+
     page = urllib2.urlopen("http://build.chromium.org/p/chromium/console").read()
     #page = open("console").read()
     td = TestData(page)
 
-    print "Downloading builds page..."
-    page2 = urllib2.urlopen("http://build.chromium.org/f/chromium/snapshots/Win/?C=M;O=D").read()
-    #page2 = open("index.html@C=M;O=D").read()
-    bd = BuildData(page2)
-
-    print
-
     td.print_summary()
 
     for rev in td.good_revisions():
-        if bd.is_available(rev):
+        if is_available(rev):
             print "found", rev
             print
-            bd.download(rev)
+            download(rev)
             break
         print "not found", rev
