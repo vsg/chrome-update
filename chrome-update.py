@@ -12,7 +12,7 @@ import urllib2
 import re, os
 
 
-SKIP_TEST_GROUPS = ["mac", "linux", "chromiumos"]
+SKIP_TEST_GROUPS = ["mac", "linux"]
 
 
 class TestData:
@@ -23,10 +23,10 @@ class TestData:
 
     def _parse_groups(self, page):
         result = []
-        for line in page.split("\n"):
-            m = re.search(r"<td class='DevStatus Alt .*?>(.*?)</td>", line)
-            if m:
-                result.append(m.group(1))
+        m = re.search(r"<td class='DevStatus Alt .*?>.*?<tr class='DevStatusSpacing'>", page, re.S)
+        groups = m.group(0)
+        for m in re.finditer(r"<td class='DevStatus Alt .*?>(.*?)</td>", groups, re.S):
+            result.append(m.group(1).strip())
         return result
 
     def _parse_data(self, page):
@@ -37,9 +37,9 @@ class TestData:
                 rev = m.group(1)
                 results = []
                 for grp in re.split("class='DevStatus ", div) [1:]:
-                    lines = filter(lambda line: "addBox(\"" in line, grp.split("\n"))
-                    ok = filter(lambda line: "\"success\"" in line, lines)
-                    results.append((len(ok), len(lines)))
+                    num = len(re.findall(r"<td class='DevStatusBox'>", grp))
+                    ok = len(re.findall(r"class='DevStatusBox success", grp))
+                    results.append((ok, num))
                 data.append((rev, results))
         return data
 
