@@ -12,7 +12,7 @@ import urllib2
 import re, os
 
 
-SKIP_TEST_GROUPS = ["mac", "linux"]
+SKIP_TEST_GROUPS = ["mac", "linux", "android"]
 
 
 class TestData:
