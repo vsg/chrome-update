@@ -12,74 +12,42 @@ import urllib2
 import re, os
 
 
-SKIP_TEST_GROUPS = ["mac", "linux", "android"]
-
-
 class TestData:
 
-    def __init__(self, page):
-        self.groups = self._parse_groups(page)
-        self.data = self._parse_data(page)
+    def __init__(self, test_page):
+        self.test_data = self._parse_test_data(test_page)
 
-    def _parse_groups(self, page):
-        result = []
-        m = re.search(r"<td class='DevStatus Alt .*?>.*?<tr class='DevStatusSpacing'>", page, re.S)
-        groups = m.group(0)
-        for m in re.finditer(r"<td class='DevStatus Alt .*?>(.*?)</td>", groups, re.S):
-            result.append(m.group(1).strip())
-        return result
-
-    def _parse_data(self, page):
-        data = []
-        for div in re.split("class='DevRev", page):
-            m = re.search(r"<a .*?>([0-9]+)</a>", div)
+    def _parse_test_data(self, test_page):
+        test_data = []
+        for snip in re.split("class='DevRev", test_page):
+            m = re.search(r"<a .*?>([0-9]+)</a>", snip)
             if m:
-                rev = m.group(1)
-                results = []
-                for grp in re.split("class='DevStatus ", div) [1:]:
-                    num = len(re.findall(r"<td class='DevStatusBox'>", grp))
-                    ok = len(re.findall(r"class='DevStatusBox success", grp))
-                    results.append((ok, num))
-                data.append((rev, results))
-        return data
+                revision = m.group(1)
+                num_ok = len(re.findall(r"class='DevStatusBox success", snip))
+                num_total = len(re.findall(r"<td class='DevStatusBox'>", snip))
+                test_data.append((revision, (num_ok, num_total)))
+        return test_data
 
     def print_summary(self):
-        print " " * 6,
-        for name in self.groups:
-            print "%-8s" % name,
-        print
-        for rev, results in self.data:
-            print rev,
-            for n, N in results:
-                print "%2d / %-3d" % (n, N),
-            if self.is_good_enough(results):
-                print "+",
-            print
-
-    def is_good_enough(self, results):
-        for name, (n, N) in zip(self.groups, results):
-            if name in SKIP_TEST_GROUPS:
-                continue
-            if n < N:
-                return False
-        return True
+        for revision, (num_ok, num_total) in self.test_data:
+            print revision, "%2d / %-3d" % (num_ok, num_total), "+" if num_ok == num_total else ""
 
     def good_revisions(self):
-        for rev, results in self.data:
-            if self.is_good_enough(results):
-                yield rev
+        for revision, (num_ok, num_total) in self.test_data:
+            if num_ok == num_total:
+                yield revision
 
 
-def is_available(rev):
+def is_available(revision):
     try:
-        urllib2.urlopen("http://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/%s/chrome-win32.zip" % rev)
+        urllib2.urlopen("http://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/%s/chrome-win32.zip" % revision)
         return True
     except:
         return False
 
-def download(rev):
-    src = "http://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/%s/chrome-win32.zip" % rev
-    dest = "chrome-win32-%s.zip" % rev
+def download(revision):
+    src = "http://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/%s/chrome-win32.zip" % revision
+    dest = "chrome-win32-%s.zip" % revision
     os.system("wget -c -O \"%s\" \"%s\"" % (dest, src))
 
 
@@ -87,16 +55,17 @@ if __name__ == '__main__':
     print "Downloading tests page..."
     print
 
-    page = urllib2.urlopen("http://build.chromium.org/p/chromium/console").read()
+    page = urllib2.urlopen("http://build.chromium.org/p/chromium.win/console").read()
     #page = open("console").read()
-    td = TestData(page)
 
+    td = TestData(page)
+    
     td.print_summary()
 
-    for rev in td.good_revisions():
-        if is_available(rev):
-            print "found", rev
+    for revision in td.good_revisions():
+        if is_available(revision):
+            print "found", revision
             print
-            download(rev)
+            download(revision)
             break
-        print "not found", rev
+        print "not found", revision
